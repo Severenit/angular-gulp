@@ -1,0 +1,28 @@
+{
+  "name": "angular-gulp",
+  "version": "0.0.0",
+  "authors": [
+    "Zar Zakharov <severenit@gmail.com>"
+  ],
+  "keywords": [
+    "angular",
+    "gulp",
+    "loftblog"
+  ],
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "angular": "~1.4.6",
+    "angular-ui-router": "~0.2.15",
+    "jquery": "~2.1.4"
+  },
+  "devDependencies": {
+    "angular-mocks": "~1.4.6"
+  }
+}
