@@ -3,12 +3,14 @@
 
   angular
     .module('app', [
-      'ui.router'
+      'ui.router',
+      'app.demoComponent'
     ])
     .config(appConfig);
 
   // @ngInject
   function appConfig($stateProvider, $urlRouterProvider) {
+    console.log('=== Start Config ===');
 
     $urlRouterProvider.otherwise('/');
 

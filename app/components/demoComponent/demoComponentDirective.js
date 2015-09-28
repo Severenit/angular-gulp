@@ -1,8 +1,14 @@
-angular.module('healthyGulpAngularApp')
+(function() {
+  'use strict';
+  angular
+      .module('app.demoComponent', [])
+      .directive('demoComponent', demoComponentFn);
 
-  .directive('demoComponent', [function() {
+  // @ngInject
+  function demoComponentFn() {
     return {
       restrict: 'A',
       templateUrl: 'components/demoComponent/demoComponent.html'
     };
-  }]);
+  }
+})();
