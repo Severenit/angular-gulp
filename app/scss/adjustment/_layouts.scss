@@ -1,0 +1,20 @@
+body {
+  font-family: Arial;
+  line-height: 1.425;
+
+  @include desktop {
+    font-size: 16px;
+  }
+
+  @include laptop {
+    font-size: 16px;
+  }
+
+  @include tablet {
+    font-size: 14px;
+  }
+
+  @include phone {
+    font-size: 12px;
+  }
+}

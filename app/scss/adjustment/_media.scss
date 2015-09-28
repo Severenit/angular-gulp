@@ -1,0 +1,38 @@
+$grids: 12;
+$gutters: 1/3;
+
+@mixin desktop {
+  @media (max-width: 1200px) {
+    @content
+  }
+}
+
+@mixin laptop {
+  @media (max-width: 992px) {
+    @content
+  }
+}
+
+
+@mixin tablet {
+  @media (max-width: 768px) {
+    @content
+  }
+}
+
+
+@mixin phone {
+  @media (max-width: 480px) {
+    @content
+  }
+}
+
+@function em($target, $context: $base-font-size) {
+  @if $target == 0 {@return 0}
+  @return $target / $context + 0em;
+}
+
+// EXAMPLE
+//@include grid-span(12, 1);
+//@include float-span(4, $gutter: 0);
+

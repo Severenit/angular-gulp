@@ -1,0 +1,21 @@
+@import "compass";
+@import "singularitygs";
+
+/* ----- adjustment ----- */
+@import "adjustment/varibles";
+@import "adjustment/mixins";
+@import "adjustment/media";
+@import "adjustment/layouts";
+
+/* ----- sections ----- */
+@import "sections/main-page";
+
+
+@include sgs-change('debug', false);
+
+.container {
+  @include background-grid($color: #ccc);
+}
+
+
+

@@ -4,15 +4,15 @@ var del = require('del');
 var es = require('event-stream');
 var bowerFiles = require('main-bower-files');
 var browserSync = require('browser-sync');
-// If you jade in your project you must set varible 'usedJade' equal 'TRUE'
-var usedJade = true;
+// If you jade in your project you must set varible 'useJade' equal 'TRUE'
+var useJade = true;
 // ==
 // ==
 // == PATH STRINGS ========
 var paths = {
   scripts: 'app/**/*.js',
-  styles: ['./app/**/*.css', './app/**/*.scss'],
-  images: './img/**/*',
+  styles: ['./app/scss/**/*.css', './app/scss/**/*.scss'],
+  images: './app/img/**/*',
   index: './app/index.html',
   indexJade: './app/index.jade',
   partials: ['app/**/*.html', '!app/index.html'],
@@ -20,7 +20,8 @@ var paths = {
   distDev: './dist.dev',
   distProd: './dist.prod',
   distScriptsProd: './dist.prod/scripts',
-  scriptsDevServer: 'devServer/**/*.js'
+  scriptsDevServer: 'devServer/**/*.js',
+  configCompass: './config.rb'
 };
 // ==
 // ==
@@ -44,10 +45,14 @@ pipes.validatedAppScripts = function() {
 
 pipes.validatedIndex = function() {
   var indexPath;
-  if (usedJade) {
+  if (useJade) {
     indexPath = paths.indexJade;
     return gulp.src(indexPath)
-        .pipe(plugins.plumber())
+        .pipe(plugins.plumber({
+          errorHandler: function (error) {
+            console.log(error.message);
+            this.emit('end');
+          }}))
         .pipe(plugins.jade())
         .pipe(plugins.prettify({indent_size: 2}))
   } else {
@@ -63,18 +68,41 @@ pipes.builtAppScriptsDev = function() {
     .pipe(gulp.dest(paths.distDev));
 };
 
+pipes.builtStylesDev = function() {
+    return gulp.src('./app/scss/**/*.scss')
+      .pipe(plugins.plumber({
+        errorHandler: function (error) {
+          console.log(error.message);
+          this.emit('end');
+        }}))
+      .pipe(plugins.sourcemaps.init())
+      .pipe(plugins.compass({
+          css: './dist.dev/css',
+          sass: './app/scss',
+          image: './app/img',
+          require: ['compass', 'singularitygs']
+      }))
+      .pipe(plugins.cssUrlAdjuster({
+        replace:  ['../app/img/','../img/']
+      }))
+      .pipe(plugins.minifyCss({compatibility: 'ie8'}))
+      .pipe(plugins.csso())
+      .pipe(plugins.sourcemaps.write('./maps'))
+      .pipe(gulp.dest(paths.distDev + '/css/'));
+};
+
 pipes.builtPartialsFilesDev = function() {
-  var partialsFiles;
-  if (usedJade) {
-    partialsFiles = paths.partialsJade;
-    return gulp.src(partialsFiles)
+  var partialsPath;
+  if (useJade) {
+    partialsPath = paths.partialsJade;
+    return gulp.src(partialsPath)
         .pipe(plugins.plumber())
         .pipe(plugins.jade())
         .pipe(plugins.prettify({indent_size: 2}))
         .pipe(gulp.dest(paths.distDev));
   } else {
-    partialsFiles = paths.partials;
-    return gulp.src(partialsFiles)
+    partialsPath = paths.partials;
+    return gulp.src(partialsPath)
         .pipe(plugins.htmlhint({'doctype-first': false}))
         .pipe(plugins.htmlhint.reporter())
         .pipe(gulp.dest(paths.distDev));
@@ -93,10 +121,13 @@ pipes.builtIndexDev = function() {
 
   var orderedAppScripts = pipes.builtAppScriptsDev();
 
+  var appStyles = pipes.builtStylesDev();
+
   return pipes.validatedIndex()
     .pipe(gulp.dest(paths.distDev)) // write first to get relative path for inject
     .pipe(plugins.inject(orderedVendorScripts, {relative: true, name: 'bower'}))
     .pipe(plugins.inject(orderedAppScripts, {relative: true}))
+    .pipe(plugins.inject(appStyles, {relative: true}))
     .pipe(gulp.dest(paths.distDev));
 };
 
@@ -110,6 +141,10 @@ pipes.builtAppDev = function() {
 // removes all compiled dev files
 gulp.task('clean-dev', function() {
   return del(paths.distDev);
+});
+// removes all compiled dev files
+gulp.task('clean-img', function() {
+  return del('./dist.dev/img/');
 });
 // removes all compiled prod files
 gulp.task('clean-prod', function() {
@@ -130,10 +165,13 @@ gulp.task('build-app-scripts-dev', pipes.builtAppScriptsDev);
 // cleans and builds a complete dev environment
 gulp.task('builts-app-dev', pipes.builtAppDev);
 
+// cleans and builds a complete dev environment
+gulp.task('built-style-dev', pipes.builtStylesDev);
+
 // build, and watch live changes to the dev environment
 gulp.task('watch-dev', ['builts-app-dev'], function() {
   var indexPath, partialsPath;
-  if (usedJade) {
+  if (useJade) {
     indexPath = paths.indexJade;
     partialsPath = paths.partialsJade;
   } else {
@@ -170,10 +208,16 @@ gulp.task('watch-dev', ['builts-app-dev'], function() {
   });
 
   // watch styles
-  //gulp.watch(paths.styles, function() {
-  //  return pipes.builtStylesDev()
-  //      .pipe(plugins.livereload());
-  //});
+  gulp.watch(paths.styles, function() {
+    return pipes.builtStylesDev()
+        .pipe(reload({stream: true}));
+  });
+
+  // watch images
+  gulp.watch(paths.images, function() {
+    return pipes.processedImagesDev()
+        .pipe(reload({stream: true}));
+  });
 
 });
 // Start command gulp... We look in dev folder!

@@ -1,0 +1,10 @@
+$socials: vk, fb, tw, in, git, you;
+$socials-map: sprite-map('socials/*.png', $spacing: 5px);
+
+@each $item in $socials {
+  .socials__item_#{$item} {
+    @include get-sprite($socials-map, $item);
+    display: inline-block;
+    vertical-align: middle;
+  }
+}
