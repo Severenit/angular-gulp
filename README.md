@@ -1,6 +1,6 @@
 # Angular + Gulp: Fast built
 
-# Installation
+## Installation
 
 Before running any Gulp tasks:
 
