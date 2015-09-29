@@ -4,9 +4,8 @@ var del = require('del');
 var es = require('event-stream');
 var bowerFiles = require('main-bower-files');
 var browserSync = require('browser-sync');
-// If you jade in your project you must set varible 'useJade' equal 'TRUE'
+// If you use jade in your project you must set varible 'useJade' equal 'TRUE'
 var useJade = true;
-// ==
 // ==
 // == PATH STRINGS ========
 var paths = {
@@ -19,31 +18,32 @@ var paths = {
   partialsJade: ['app/**/*.jade', '!app/index.jade'],
   distDev: './dist.dev',
   distProd: './dist.prod',
+  distDevCss: './dist.dev/css',
+  distProdCss: './dist.prod/css',
+  distDevImg: './dist.dev/img',
   distScriptsProd: './dist.prod/scripts',
-  scriptsDevServer: 'devServer/**/*.js',
-  configCompass: './config.rb'
+  scriptsDevServer: 'devServer/**/*.js'
 };
-// ==
 // ==
 // == PIPE SEGMENTS ========
 var pipes = {};
-
+// Sort scripts first jquery
 pipes.orderedVendorScripts = function() {
   return plugins.order(['jquery.js', 'angular.js']);
 };
-
+// Build bower script and move in dist folder
 pipes.builtVendorScriptsDev = function() {
   return gulp.src(bowerFiles())
     .pipe(gulp.dest(paths.distDev + '/bower_components'));
 };
-
+// Validate script on jshint
 pipes.validatedAppScripts = function() {
   return gulp.src(paths.scripts)
       .pipe(plugins.jshint())
       .pipe(plugins.jshint.reporter('jshint-stylish'));
 };
-
-pipes.validatedIndex = function() {
+// Build index.jsde file or copy index.html
+pipes.buildIndexFile = function() {
   var indexPath;
   if (useJade) {
     indexPath = paths.indexJade;
@@ -53,6 +53,7 @@ pipes.validatedIndex = function() {
             console.log(error.message);
             this.emit('end');
           }}))
+        .on('error', log)
         .pipe(plugins.jade())
         .pipe(plugins.prettify({indent_size: 2}))
   } else {
@@ -60,14 +61,14 @@ pipes.validatedIndex = function() {
     return gulp.src(indexPath);
   }
 };
-
+// Build App script and move to dev
 pipes.builtAppScriptsDev = function() {
   return pipes.validatedAppScripts()
     .pipe(plugins.ngAnnotate())
     .pipe(plugins.concat('app.js'))
     .pipe(gulp.dest(paths.distDev));
 };
-
+// Build style scss file
 pipes.builtStylesDev = function() {
     return gulp.src('./app/scss/**/*.scss')
       .pipe(plugins.plumber({
@@ -75,22 +76,20 @@ pipes.builtStylesDev = function() {
           console.log(error.message);
           this.emit('end');
         }}))
-      .pipe(plugins.sourcemaps.init())
+      .on('error', log)
       .pipe(plugins.compass({
-          css: './dist.dev/css',
-          sass: './app/scss',
-          image: './app/img',
+          sourcemap: true,
+          css: './dist.dev/css/',
+          sass: './app/scss/',
+          image: './app/img/',
           require: ['compass', 'singularitygs']
       }))
       .pipe(plugins.cssUrlAdjuster({
-        replace:  ['../app/img/','../img/']
+        replace:  ['../../app/img','../img/']
       }))
-      .pipe(plugins.minifyCss({compatibility: 'ie8'}))
-      .pipe(plugins.csso())
-      .pipe(plugins.sourcemaps.write('./maps'))
       .pipe(gulp.dest(paths.distDev + '/css/'));
 };
-
+// Builde all others jade file or copy html files
 pipes.builtPartialsFilesDev = function() {
   var partialsPath;
   if (useJade) {
@@ -108,12 +107,12 @@ pipes.builtPartialsFilesDev = function() {
         .pipe(gulp.dest(paths.distDev));
   }
 };
-
+// Copy images files
 pipes.processedImagesDev = function() {
   return gulp.src(paths.images)
       .pipe(gulp.dest(paths.distDev + '/img/'));
 };
-
+// Build all project
 pipes.builtIndexDev = function() {
 
   var orderedVendorScripts = pipes.builtVendorScriptsDev()
@@ -123,28 +122,35 @@ pipes.builtIndexDev = function() {
 
   var appStyles = pipes.builtStylesDev();
 
-  return pipes.validatedIndex()
+  return pipes.buildIndexFile()
     .pipe(gulp.dest(paths.distDev)) // write first to get relative path for inject
     .pipe(plugins.inject(orderedVendorScripts, {relative: true, name: 'bower'}))
     .pipe(plugins.inject(orderedAppScripts, {relative: true}))
     .pipe(plugins.inject(appStyles, {relative: true}))
     .pipe(gulp.dest(paths.distDev));
 };
-
+// Set stream
 pipes.builtAppDev = function() {
   return es.merge(pipes.builtIndexDev(), pipes.builtPartialsFilesDev(), pipes.processedImagesDev());
 };
 // ==
 // ==
 // == TASKS ========
-
+// Error
+var log = function (error) {
+  console.log([
+    '',
+    "----------ERROR MESSAGE START----------",
+    ("[" + error.name + " in " + error.plugin + "]"),
+    error.message,
+    "----------ERROR MESSAGE END----------",
+    ''
+  ].join('\n'));
+  this.end();
+};
 // removes all compiled dev files
 gulp.task('clean-dev', function() {
   return del(paths.distDev);
-});
-// removes all compiled dev files
-gulp.task('clean-img', function() {
-  return del('./dist.dev/img/');
 });
 // removes all compiled prod files
 gulp.task('clean-prod', function() {
@@ -163,13 +169,16 @@ gulp.task('build-partials-files-dev', pipes.builtPartialsFilesDev);
 gulp.task('build-app-scripts-dev', pipes.builtAppScriptsDev);
 
 // cleans and builds a complete dev environment
-gulp.task('builts-app-dev', pipes.builtAppDev);
+gulp.task('built-app-dev', pipes.builtAppDev);
 
 // cleans and builds a complete dev environment
 gulp.task('built-style-dev', pipes.builtStylesDev);
 
+// cleans and builds a complete dev environment
+gulp.task('clean-build-app-dev', ['clean-dev'], pipes.builtAppDev);
+
 // build, and watch live changes to the dev environment
-gulp.task('watch-dev', ['builts-app-dev'], function() {
+gulp.task('watch-dev', ['clean-build-app-dev'], function() {
   var indexPath, partialsPath;
   if (useJade) {
     indexPath = paths.indexJade;
