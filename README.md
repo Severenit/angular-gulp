@@ -13,7 +13,7 @@ Before running any Gulp tasks:
 
 The project ships with a directory structure like:
 
-    /gulp-angular
+    /angular-gulp
     |---- package.json
     |---- bower.json
     |---- gulpfile.js
