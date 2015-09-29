@@ -3,6 +3,7 @@ var plugins = require('gulp-load-plugins')();
 var del = require('del');
 var es = require('event-stream');
 var bowerFiles = require('main-bower-files');
+//var sourcemaps = require('gulp-sourcemaps');
 var browserSync = require('browser-sync');
 // If you use jade in your project you must set varible 'useJade' equal 'TRUE'
 var useJade = true;
@@ -133,6 +134,78 @@ pipes.builtIndexDev = function() {
 pipes.builtAppDev = function() {
   return es.merge(pipes.builtIndexDev(), pipes.builtPartialsFilesDev(), pipes.processedImagesDev());
 };
+// == Prod Scripts and Tasks
+// Builde all others jade file or copy html files
+pipes.builtPartialsFilesProd = function() {
+  var partialsPath;
+  if (useJade) {
+    partialsPath = paths.partialsJade;
+    return gulp.src(partialsPath)
+        .pipe(plugins.plumber())
+        .pipe(plugins.jade())
+        .pipe(plugins.prettify({indent_size: 2}))
+        .pipe(gulp.dest(paths.distProd));
+  } else {
+    partialsPath = paths.partials;
+    return gulp.src(partialsPath)
+        .pipe(plugins.htmlhint({'doctype-first': false}))
+        .pipe(plugins.htmlhint.reporter())
+        .pipe(gulp.dest(paths.distProd));
+  }
+};
+pipes.builtAppScriptsProd = function() {
+  var scriptedPartials = pipes.builtPartialsFilesProd();
+  var validatedAppScripts = pipes.validatedAppScripts();
+
+  return es.merge(scriptedPartials, validatedAppScripts)
+      .pipe(plugins.sourcemaps.init())
+      .pipe(plugins.concat('app.min.js'))
+      //.pipe(plugins.uglify())
+      .pipe(plugins.sourcemaps.write())
+      .pipe(gulp.dest(paths.distScriptsProd));
+};
+pipes.builtVendorScriptsProd = function() {
+  return gulp.src(bowerFiles('**/*.js'))
+      .pipe(pipes.orderedVendorScripts())
+      .pipe(plugins.concat('vendor.min.js'))
+      //.pipe(plugins.uglify())
+      .pipe(gulp.dest(paths.distScriptsProd));
+};
+// Build style scss file
+pipes.builtStylesProd = function() {
+  return gulp.src('./app/scss/**/*.scss')
+      .pipe(plugins.compass({
+        css: './dist.prod/css/',
+        sass: './app/scss/',
+        image: './app/img/',
+        require: ['compass', 'singularitygs']
+      }))
+      .pipe(plugins.cssUrlAdjuster({
+        replace:  ['../../app/img','../img/']
+      }))
+      .pipe(gulp.dest(paths.distProd + '/css/'));
+};
+pipes.builtIndexProd = function() {
+
+  var vendorScripts = pipes.builtVendorScriptsProd();
+  var appScripts = pipes.builtAppScriptsProd();
+  var appStyles = pipes.builtStylesProd();
+
+  return pipes.buildIndexFile()
+      .pipe(gulp.dest(paths.distProd)) // write first to get relative path for inject
+      .pipe(plugins.inject(vendorScripts, {relative: true, name: 'bower'}))
+      .pipe(plugins.inject(appScripts, {relative: true}))
+      .pipe(plugins.inject(appStyles, {relative: true}))
+      .pipe(plugins.htmlmin({collapseWhitespace: true, removeComments: true}))
+      .pipe(gulp.dest(paths.distProd));
+};
+pipes.processedImagesProd = function() {
+  return gulp.src(paths.images)
+      .pipe(gulp.dest(paths.distProd + '/img/'));
+};
+pipes.builtAppProd = function() {
+  return es.merge(pipes.builtIndexProd(), pipes.processedImagesProd());
+};
 // ==
 // ==
 // == TASKS ========
@@ -229,5 +302,14 @@ gulp.task('watch-dev', ['clean-build-app-dev'], function() {
   });
 
 });
+
+// concatenates, uglifies, and moves app scripts and partials into the prod environment
+gulp.task('build-app-scripts-prod', pipes.builtAppScriptsProd);
+// validates and injects sources into index.html, minifies and moves it to the dev environment
+gulp.task('build-index-prod', pipes.builtIndexProd);
+// builds a complete prod environment
+gulp.task('build-app-prod', pipes.builtAppProd);
+// cleans and builds a complete prod environment
+gulp.task('clean-build-app-prod', ['clean-prod'], pipes.builtAppProd);
 // Start command gulp... We look in dev folder!
 gulp.task('default', ['watch-dev']);
